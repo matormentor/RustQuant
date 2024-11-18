@@ -40,7 +40,7 @@ impl Accumulate<Vec<f64>> for Variable<'_> {
 
         // Traverse the graph backwards and update the adjoints for the parent vertices.
         // This is simply the generalised chain rule.
-        for (index, vertex) in self.graph.vertices.borrow().iter().enumerate().rev() {
+        for (index, vertex) in self.graph.vertices.read().unwrap().iter().enumerate().rev() {
             let deriv = adjoints[index];
 
             adjoints[vertex.parents[0]] += vertex.partials[0] * deriv;

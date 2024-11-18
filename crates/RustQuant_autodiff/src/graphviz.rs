@@ -40,7 +40,7 @@ pub fn graphviz(graph: &Graph, vars: &[Variable]) -> String {
         "digraph Graph {\n\tbgcolor=\"transparent\";\n\trankdir=\"LR\";\n\tnode [shape=box3d];\n",
     );
 
-    let vertices = graph.vertices.borrow();
+    let vertices = graph.vertices.read().unwrap();
 
     // Initialize a HashSet with variable indices for quick lookup
     let var_indices: std::collections::HashSet<_> = vars.iter().map(|var| var.index).collect();

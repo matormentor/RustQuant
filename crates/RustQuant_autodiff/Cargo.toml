@@ -20,6 +20,8 @@ RustQuant = { path = "../RustQuant" }
 ndarray = { workspace = true }
 errorfunctions = { workspace = true }
 RustQuant_utils = { workspace = true }
+lazy_static = "1.5.0"
+num-traits = "0.2.19"
 
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## RUSTDOC CONFIGURATION

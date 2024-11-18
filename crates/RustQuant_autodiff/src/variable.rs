@@ -20,10 +20,17 @@
 
 use crate::graph::Graph;
 use std::fmt::Display;
+use lazy_static::lazy_static;
+use num_traits::identities::{One, Zero};
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // STRUCT AND IMPLEMENTATION
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+lazy_static! {
+	/// Global static graph
+    pub static ref STATIC_GRAPH: Graph = Graph::new();
+}
 
 /// Struct to contain the initial variables.
 #[derive(Clone, Copy, Debug)]
@@ -47,6 +54,12 @@ impl<'v> Variable<'v> {
             value,
         }
     }
+
+	/// Function that sets the graph of a variable.
+	#[inline]
+	pub fn set_graph(&mut self, graph: &'v Graph) {
+		self.graph = graph;
+	}
 
     /// Function to return the value contained in a vertex.
     #[must_use]
@@ -181,13 +194,57 @@ impl<'v> Ord for Variable<'v> {
     }
 }
 
+impl<'v> One for Variable<'v> {
+	#[inline]
+	fn one() -> Self {
+		Variable{
+			graph: &*STATIC_GRAPH,
+			index: Zero::zero(),
+			value: One::one()
+		}
+	}
+
+	#[inline]
+	fn set_one(&mut self) {
+		self.value = One::one();
+	}
+
+	#[inline]
+	fn is_one(&self) -> bool {
+		self.value() == One::one()
+	}
+
+}
+
+/// Implements Zero for the `Variable` struct
+impl<'v> Zero for Variable<'v> {
+	#[inline]
+	fn zero() -> Self {
+		Variable{
+			graph: &*STATIC_GRAPH,
+			index: Zero::zero(),
+			value: Zero::zero()
+		}
+	}
+
+	#[inline]
+	fn set_zero(&mut self) {
+		self.value = Zero::zero();
+	}
+
+	#[inline]
+	fn is_zero(&self) -> bool {
+		self.is_zero()
+	}
+}
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // UNIT TESTS
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #[cfg(test)]
 mod tests_variable {
-    use super::*;
+	use super::*;
 
     use RustQuant_utils::assert_approx_equal;
 
@@ -256,6 +313,69 @@ mod tests_variable {
         assert!(!g.var(1.0).is_negative());
         assert_approx_equal!(g.var(1.0).signum(), 1.0, f64::EPSILON);
     }
+
+	#[test]
+	fn test_variable_zero() {
+		let g = Graph::new();
+
+		let var1 = Variable {
+			graph: &g,
+			index: 1,
+			value: std::f64::consts::PI,
+		};
+		let mut zero = Variable::zero();
+		zero.set_graph(&g);
+
+		assert!(zero.is_zero());
+		assert_eq!(zero + var1, std::f64::consts::PI);
+		assert_eq!(var1 + zero, std::f64::consts::PI);
+
+		let mut var2 = var1.clone();
+		var2.set_zero();
+		assert!(var2.is_zero());
+	}
+	#[test]
+	fn test_variable_one() {
+		let g = Graph::new();
+
+		let var1 = Variable {
+			graph: &g,
+			index: 1,
+			value: std::f64::consts::PI,
+		};
+		let mut one = Variable::one();
+		one.set_graph(&g);
+
+		assert!(one.is_one());
+		assert_eq!(one * var1, std::f64::consts::PI);
+		assert_eq!(var1 * one, std::f64::consts::PI);
+
+		let mut var2 = var1.clone();
+		var2.set_one();
+		assert!(var2.is_one());
+	}
+
+	#[test]
+	fn test_multiple_graphs_different_address() {
+		let g1 = Graph::new();
+		let g2 = Graph::new();
+
+		let mut one1 = Variable::one();
+		one1.set_graph(&g1);
+		let mut one2 = Variable::one();
+		one2.set_graph(&g2);
+		let mut zero1 = Variable::zero();
+		zero1.set_graph(&g1);
+		let mut zero2 = Variable::zero();
+		zero2.set_graph(&g2);
+
+		println!("{:p} {:p}", zero1.graph, zero2.graph);
+		println!("{:p} {:p}", one1.graph, one2.graph);
+		assert!(std::ptr::addr_eq(zero1.graph, one1.graph));
+		assert!(std::ptr::addr_eq(zero2.graph, one2.graph));
+		assert!(!std::ptr::addr_eq(zero1.graph, zero2.graph));
+		assert!(!std::ptr::addr_eq(one1.graph, one2.graph));
+	}
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -18,8 +18,7 @@
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 use crate::{variable::Variable, Arity, Vertex};
-use std::cell::RefCell;
-
+use std::sync::{Arc, RwLock};
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // GRAPH STRUCTS AND IMPLEMENTATIONS
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -28,7 +27,7 @@ use std::cell::RefCell;
 #[derive(Debug, Clone)]
 pub struct Graph {
     /// Vector containing the vertices in the Wengert List.
-    pub vertices: RefCell<Vec<Vertex>>,
+    pub vertices: Arc<RwLock<Vec<Vertex>>>,
 }
 // pub struct Graph(RefCell<Rc<[Vertex]>>);
 
@@ -44,9 +43,9 @@ impl Graph {
     /// Instantiate a new graph.
     #[must_use]
     #[inline]
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
-            vertices: RefCell::new(Vec::new()),
+            vertices: Arc::new(RwLock::new(Vec::new())),
             // vertices: RefCell::new(Rc::new([])),
         }
     }
@@ -56,7 +55,7 @@ impl Graph {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
         Graph {
-            vertices: RefCell::new(Vec::with_capacity(capacity)),
+            vertices: Arc::new(RwLock::new(Vec::with_capacity(capacity))),
             // vertices: RefCell::new(Rc::new([])),
         }
     }
@@ -66,9 +65,9 @@ impl Graph {
     #[inline]
     pub fn join(&self, other: &Self) -> Self {
         let graph = self.clone();
-        let other = other.vertices.borrow_mut().clone();
-        graph.vertices.borrow_mut().extend(other);
-        graph
+        let other_vertices = other.vertices.read().unwrap().clone();
+        graph.vertices.write().unwrap().extend(other_vertices);
+	    graph
     }
 
     /// Add a new variable to the graph.
@@ -85,33 +84,33 @@ impl Graph {
     /// Add multiple variables (a slice) to the graph.
     /// Useful for larger functions with many inputs.
     #[inline]
-    pub fn vars<'v>(&'v self, values: &[f64]) -> Vec<Variable<'v>> {
+    pub fn vars(&self, values: &[f64]) -> Vec<Variable> {
         values.iter().map(|&val| self.var(val)).collect()
     }
 
     /// Returns the length of the graph so new vertices can index to the correct position.
     #[inline]
     pub fn len(&self) -> usize {
-        self.vertices.borrow().len()
+        self.vertices.read().unwrap().len()
     }
 
     /// Returns true/false depending on whether the graph is empty or not.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.vertices.borrow().len() == 0
+        self.vertices.read().unwrap().len() == 0
     }
 
     /// Clears the entire graph.
     #[inline]
     pub fn clear(&self) {
-        self.vertices.borrow_mut().clear();
+        self.vertices.write().unwrap().clear();
     }
 
     /// Zeroes the adjoints in the graph.
     #[inline]
     pub fn zero(&self) {
         self.vertices
-            .borrow_mut()
+	        .write().unwrap()
             .iter_mut()
             .for_each(|vertex| vertex.partials = [0.0; 2]);
     }
@@ -123,7 +122,7 @@ impl Graph {
     /// Pushes a vertex to the graph.
     #[inline]
     pub fn push(&self, arity: Arity, parents: &[usize], partials: &[f64]) -> usize {
-        let mut vertices = self.vertices.borrow_mut();
+        let mut vertices = self.vertices.write().unwrap();
         let len = vertices.len();
 
         let vertex = match arity {
@@ -154,7 +153,7 @@ impl Graph {
             // 2. Pushes the new vertex onto the graph,
             // 3. Returns the index of the new vertex.
             Arity::Unary => {
-                assert!(parents.len() == 1);
+                assert_eq!(parents.len(), 1);
 
                 Vertex {
                     partials: [partials[0], 0.0],
@@ -171,7 +170,7 @@ impl Graph {
             // 2. Pushes the new vertex onto the graph,
             // 3. Returns the index of the new vertex.
             Arity::Binary => {
-                assert!(parents.len() == 2);
+                assert_eq!(parents.len(), 2);
 
                 Vertex {
                     partials: [partials[0], partials[1]],
